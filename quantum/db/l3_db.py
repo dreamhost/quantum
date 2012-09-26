@@ -134,11 +134,7 @@ class L3_NAT_db_mixin(l3.RouterPluginBase):
 
     def create_router(self, context, router):
         r = router['router']
-        has_gw_info = False
-        if 'external_gateway_info' in r:
-            has_gw_info = True
-            gw_info = r['external_gateway_info']
-            del r['external_gateway_info']
+        gw_info = r.pop('external_gateway_info', None)
         tenant_id = self._get_tenant_id_for_create(context, r)
         with context.session.begin(subtransactions=True):
             # pre-generate id so it will be available when
@@ -149,19 +145,15 @@ class L3_NAT_db_mixin(l3.RouterPluginBase):
                                admin_state_up=r['admin_state_up'],
                                status="ACTIVE")
             context.session.add(router_db)
-            if has_gw_info:
+            if gw_info is not None:
                 self._update_router_gw_info(context, router_db['id'], gw_info)
         return self._make_router_dict(router_db)
 
     def update_router(self, context, id, router):
         r = router['router']
-        has_gw_info = False
-        if 'external_gateway_info' in r:
-            has_gw_info = True
-            gw_info = r['external_gateway_info']
-            del r['external_gateway_info']
+        gw_info = r.pop('external_gateway_info', None)
         with context.session.begin(subtransactions=True):
-            if has_gw_info:
+            if gw_info is not None:
                 self._update_router_gw_info(context, id, gw_info)
             router_db = self._get_router(context, id)
             # Ensure we actually have something to update
@@ -178,6 +170,7 @@ class L3_NAT_db_mixin(l3.RouterPluginBase):
 
         network_id = info.get('network_id', None) if info else None
         if network_id:
+            # XXX what's the purpose of this
             self._get_network(context, network_id)
             if not self._network_is_external(context, network_id):
                 msg = "Network %s is not a valid external network" % network_id
@@ -190,9 +183,9 @@ class L3_NAT_db_mixin(l3.RouterPluginBase):
                 context.session.add(router)
             self.delete_port(context.elevated(), gw_port['id'],
                              l3_port_check=False)
+            gw_port = None
 
-        if network_id is not None and (gw_port is None or
-                                       gw_port['network_id'] != network_id):
+        if network_id is not None and gw_port is None:
             # Port has no 'tenant-id', as it is hidden from user
             gw_port = self.create_port(context.elevated(), {
                 'port':
