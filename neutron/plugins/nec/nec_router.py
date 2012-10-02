@@ -192,34 +192,18 @@ class RouterMixin(extraroute_db.ExtraRoute_db_mixin,
         from candidate routers for floating IP association.
         This method is called in l3_db.get_assoc_data().
         """
-        subnet_db = self._get_subnet(context, internal_subnet_id)
-        if not subnet_db['gateway_ip']:
-            msg = (_('Cannot add floating IP to port on subnet %s '
-                     'which has no gateway_ip') % internal_subnet_id)
-            raise q_exc.BadRequest(resource='floatingip', msg=msg)
 
-        # find router interface ports on this network
-        router_intf_qry = context.session.query(models_v2.Port)
-        router_intf_ports = router_intf_qry.filter_by(
-            network_id=internal_port['network_id'],
-            device_owner=l3_db.DEVICE_OWNER_ROUTER_INTF)
+        router = super(RouterMixin, self)._get_router_for_floatingip(
+            context,
+            internal_port,
+            internal_subnet_id,
+            external_network_id
+        )
 
-        for intf_p in router_intf_ports:
-            if intf_p['fixed_ips'][0]['subnet_id'] == internal_subnet_id:
-                router_id = intf_p['device_id']
-                router_gw_qry = context.session.query(models_v2.Port)
-                has_gw_port = router_gw_qry.filter_by(
-                    network_id=external_network_id,
-                    device_id=router_id,
-                    device_owner=l3_db.DEVICE_OWNER_ROUTER_GW).count()
-                driver = self._get_router_driver_by_id(context, router_id)
-                if (has_gw_port and driver.floating_ip_support()):
-                    return router_id
+        driver = self._get_router_driver_by_id(context, router.id)
 
-        raise l3.ExternalGatewayForFloatingIPNotFound(
-            subnet_id=internal_subnet_id,
-            external_network_id=external_network_id,
-            port_id=internal_port['id'])
+        if router.gw_port and driver.floating_ip_support():
+            return router
 
     def _get_sync_routers(self, context, router_ids=None, active=None):
         """Query routers and their gw ports for l3 agent.

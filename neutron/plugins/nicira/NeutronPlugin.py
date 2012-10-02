@@ -1472,9 +1472,8 @@ class NvpPluginV2(addr_pair_db.AllowedAddressPairsMixin,
                 self._process_nsx_router_create(context, router_db, r)
                 context.session.add(router_db)
             if has_gw_info:
-                self._update_router_gw_info(context, router_db['id'], gw_info)
-        router = self._make_router_dict(router_db)
-        return router
+                self._update_router_gw_info(context, router_db, gw_info)
+        return self._make_router_dict(router_db)
 
     def _update_lrouter(self, context, router_id, name, nexthop, routes=None):
         return nvplib.update_lrouter(

@@ -362,19 +362,23 @@ class L3NATAgent(firewall_l3_agent.FWaaSL3AgentRpcCallback, manager.Manager):
         if len(ips) > 1:
             LOG.error(_("Ignoring multiple IPs on router port %s"),
                       port['id'])
-        prefixlen = netaddr.IPNetwork(port['subnet']['cidr']).prefixlen
+
+        # handle transition from Grizzly to Havana+
+        if 'subnet' in port:  # Grizzly
+            prefixlen = netaddr.IPNetwork(port['subnet']['cidr']).prefixlen
+        else:  # Havana+
+            prefixlen = netaddr.IPNetwork(ips[0]['subnet']['cidr']).prefixlen
         port['ip_cidr'] = "%s/%s" % (ips[0]['ip_address'], prefixlen)
 
     def process_router(self, ri):
         ri.iptables_manager.defer_apply_on()
         ex_gw_port = self._get_ex_gw_port(ri)
         internal_ports = ri.router.get(l3_constants.INTERFACE_KEY, [])
-        existing_port_ids = set([p['id'] for p in ri.internal_ports])
-        current_port_ids = set([p['id'] for p in internal_ports
-                                if p['admin_state_up']])
+        existing_port_ids = set(p['id'] for p in ri.internal_ports)
+        current_port_ids = set(p['id'] for p in internal_ports
+                               if p['admin_state_up'])
         new_ports = [p for p in internal_ports if
-                     p['id'] in current_port_ids and
-                     p['id'] not in existing_port_ids]
+                     p['id'] in (current_port_ids - existing_port_ids)]
         old_ports = [p for p in ri.internal_ports if
                      p['id'] not in current_port_ids]
         for p in new_ports:
@@ -527,8 +531,12 @@ class L3NATAgent(firewall_l3_agent.FWaaSL3AgentRpcCallback, manager.Manager):
         ip_address = ex_gw_port['ip_cidr'].split('/')[0]
         self._send_gratuitous_arp_packet(ri, interface_name, ip_address)
 
-        gw_ip = ex_gw_port['subnet']['gateway_ip']
-        if ex_gw_port['subnet']['gateway_ip']:
+        # handle transition from Grizzly to Havana+
+        if 'subnet' in ex_gw_port:  # Grizzly
+            gw_ip = ex_gw_port['subnet']['gateway_ip']
+        else:  # Havana+
+            gw_ip = ex_gw_port['fixed_ips'][0]['subnet']['gateway_ip']
+        if gw_ip:
             cmd = ['route', 'add', 'default', 'gw', gw_ip]
             if self.conf.use_namespaces:
                 ip_wrapper = ip_lib.IPWrapper(self.root_helper,

@@ -107,7 +107,9 @@ RESOURCE_ATTRIBUTE_MAP = {
                       'is_visible': True},
         EXTERNAL_GW_INFO: {'allow_post': True, 'allow_put': True,
                            'is_visible': True, 'default': None,
-                           'enforce_policy': True}
+                           'enforce_policy': True},
+        'ports': {'allow_post': False, 'allow_put': False,
+                  'is_visible': True}
     },
     'floatingips': {
         'id': {'allow_post': False, 'allow_put': False,

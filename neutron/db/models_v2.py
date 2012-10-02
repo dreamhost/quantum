@@ -165,6 +165,10 @@ class Subnet(model_base.BASEV2, HasId, HasTenant):
                               backref='subnet',
                               cascade='all, delete, delete-orphan')
     shared = sa.Column(sa.Boolean)
+    ipallocations = orm.relationship(IPAllocation,
+                                     backref='subnet',
+                                     lazy='dynamic',
+                                     cascade='delete')
 
 
 class Network(model_base.BASEV2, HasId, HasTenant):
