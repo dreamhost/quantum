@@ -381,7 +381,10 @@ class L3NatDBTestCase(test_db_plugin.QuantumDbPluginV2TestCase):
                 # fetch port and confirm device_id
                 r_port_id = body['port_id']
                 body = self._show('ports', r_port_id)
-                self.assertEquals(body['port']['device_id'], r['router']['id'])
+                self.assertEquals(body['port']['device_id'], '')
+
+                rtr_body = self._show('routers', r['router']['id'])
+                self.assertEquals(len(rtr_body['router']['ports']), 1)
 
                 body = self._router_interface_action('remove',
                                                      r['router']['id'],
@@ -389,6 +392,9 @@ class L3NatDBTestCase(test_db_plugin.QuantumDbPluginV2TestCase):
                                                      None)
                 body = self._show('ports', r_port_id,
                                   expected_code=exc.HTTPNotFound.code)
+
+                rtr_body = self._show('routers', r['router']['id'])
+                self.assertEquals(len(rtr_body['router']['ports']), 0)
 
     def test_router_add_interface_subnet_with_bad_tenant(self):
         with mock.patch('quantum.context.Context.to_dict') as tdict:
@@ -437,13 +443,19 @@ class L3NatDBTestCase(test_db_plugin.QuantumDbPluginV2TestCase):
 
                 # fetch port and confirm device_id
                 body = self._show('ports', p['port']['id'])
-                self.assertEquals(body['port']['device_id'], r['router']['id'])
+                self.assertEquals(body['port']['device_id'], '')
+
+                rtr_body = self._show('routers', r['router']['id'])
+                self.assertEquals(len(rtr_body['router']['ports']), 1)
 
                 # clean-up
                 self._router_interface_action('remove',
                                               r['router']['id'],
                                               None,
                                               p['port']['id'])
+
+                rtr_body = self._show('routers', r['router']['id'])
+                self.assertEquals(len(rtr_body['router']['ports']), 0)
 
     def test_router_add_interface_port_bad_tenant(self):
         with mock.patch('quantum.context.Context.to_dict') as tdict:
