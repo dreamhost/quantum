@@ -656,7 +656,9 @@ class L3NatDBTestCase(L3NatTestCaseBase):
                 # fetch port and confirm device_id
                 r_port_id = body['port_id']
                 body = self._show('ports', r_port_id)
-                self.assertEqual(body['port']['device_id'], r['router']['id'])
+                self.assertEqual(body['port']['device_id'], '')
+
+                rtr_body = self._show('routers', r['router']['id'])
 
                 body = self._router_interface_action('remove',
                                                      r['router']['id'],
@@ -665,6 +667,9 @@ class L3NatDBTestCase(L3NatTestCaseBase):
                 body = self._show('ports', r_port_id,
                                   expected_code=exc.HTTPNotFound.code)
 
+                rtr_body = self._show('routers', r['router']['id'])
+
+                self.assertEqual(len(test_notifier.NOTIFICATIONS), 8)
                 self.assertEqual(
                     set(n['event_type'] for n in test_notifier.NOTIFICATIONS),
                     set(exp_notifications))
@@ -756,13 +761,17 @@ class L3NatDBTestCase(L3NatTestCaseBase):
 
                 # fetch port and confirm device_id
                 body = self._show('ports', p['port']['id'])
-                self.assertEqual(body['port']['device_id'], r['router']['id'])
+                self.assertEqual(body['port']['device_id'], '')
+
+                rtr_body = self._show('routers', r['router']['id'])
 
                 # clean-up
                 self._router_interface_action('remove',
                                               r['router']['id'],
                                               None,
                                               p['port']['id'])
+
+                rtr_body = self._show('routers', r['router']['id'])
 
     def test_router_add_interface_port_bad_tenant_returns_404(self):
         with mock.patch('quantum.context.Context.to_dict') as tdict:
@@ -1365,11 +1374,11 @@ class L3NatDBTestCase(L3NatTestCaseBase):
 
     def test_floatingip_delete_router_intf_with_subnet_id_returns_409(self):
         found = False
-        with self.floatingip_with_assoc():
+        with self.floatingip_with_assoc() as fip:
             for p in self._list('ports')['ports']:
                 if p['device_owner'] == 'network:router_interface':
                     subnet_id = p['fixed_ips'][0]['subnet_id']
-                    router_id = p['device_id']
+                    router_id = fip['floatingip']['router_id']
                     self._router_interface_action(
                         'remove', router_id, subnet_id, None,
                         expected_code=exc.HTTPConflict.code)
@@ -1379,10 +1388,10 @@ class L3NatDBTestCase(L3NatTestCaseBase):
 
     def test_floatingip_delete_router_intf_with_port_id_returns_409(self):
         found = False
-        with self.floatingip_with_assoc():
+        with self.floatingip_with_assoc() as fip:
             for p in self._list('ports')['ports']:
                 if p['device_owner'] == 'network:router_interface':
-                    router_id = p['device_id']
+                    router_id = fip['floatingip']['router_id']
                     self._router_interface_action(
                         'remove', router_id, None, p['id'],
                         expected_code=exc.HTTPConflict.code)
@@ -1549,7 +1558,7 @@ class L3NatDBTestCase(L3NatTestCaseBase):
                 self.assertEqual(1, len(routers))
                 interfaces = routers[0][l3_constants.INTERFACE_KEY]
                 self.assertEqual(1, len(interfaces))
-                subnet_id = interfaces[0]['subnet']['id']
+                subnet_id = interfaces[0]['fixed_ips'][0]['subnet']['id']
                 wanted_subnetid = p['port']['fixed_ips'][0]['subnet_id']
                 self.assertEqual(wanted_subnetid, subnet_id)
                 # clean-up
@@ -1598,7 +1607,8 @@ class L3NatDBTestCase(L3NatTestCaseBase):
                                                [r['router']['id']])
                 self.assertEqual(1, len(routers))
                 gw_port = routers[0]['gw_port']
-                self.assertEqual(s['subnet']['id'], gw_port['subnet']['id'])
+                self.assertEqual(s['subnet']['id'],
+                                 gw_port['fixed_ips'][0]['subnet_id'])
                 self._remove_external_gateway_from_router(
                     r['router']['id'],
                     s['subnet']['network_id'])
