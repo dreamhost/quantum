@@ -47,19 +47,15 @@ class L3_NAT_db_mixin(l3_db.L3_NAT_db_mixin):
                 'network_id': nw_id,
                 'enable_snat': router_db.enable_snat}
 
-    def _update_router_gw_info(self, context, router_id, info, router=None):
-        # Load the router only if necessary
-        if not router:
-            router = self._get_router(context, router_id)
+    def _update_router_gw_info(self, context, router, info):
         # if enable_snat is not specified use the value
         # stored in the database (default:True)
         enable_snat = not info or info.get('enable_snat', router.enable_snat)
         with context.session.begin(subtransactions=True):
             router.enable_snat = enable_snat
 
-        # Calls superclass, pass router db object for avoiding re-loading
         super(L3_NAT_db_mixin, self)._update_router_gw_info(
-            context, router_id, info, router=router)
+            context, router, info)
         # Returning the router might come back useful if this
         # method is overriden in child classes
         return router

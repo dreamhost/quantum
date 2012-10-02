@@ -104,22 +104,19 @@ class ExtraRoute_db_mixin(l3_db.L3_NAT_db_mixin):
                         routes=routes,
                         reason=_('the nexthop is used by router'))
 
-    def _validate_routes(self, context,
-                         router_id, routes):
+    def _validate_routes(self, context, router, routes):
         if len(routes) > cfg.CONF.max_routes:
             raise extraroute.RoutesExhausted(
-                router_id=router_id,
+                router_id=router.id,
                 quota=cfg.CONF.max_routes)
 
-        filters = {'device_id': [router_id]}
-        ports = self._core_plugin.get_ports(context, filters)
+        ports = [rp.port for rp in router.attached_ports.all()]
         for route in routes:
             self._validate_routes_nexthop(
                 context, ports, routes, route['nexthop'])
 
     def _update_extra_routes(self, context, router, routes):
-        self._validate_routes(context, router['id'],
-                              routes)
+        self._validate_routes(context, router, routes)
         old_routes = self._get_extra_routes_by_router_id(
             context, router['id'])
         added, removed = utils.diff_list_of_dict(old_routes,

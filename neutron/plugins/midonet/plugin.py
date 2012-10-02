@@ -141,22 +141,30 @@ def _rule_direction(sg_direction):
 
 def _is_router_interface_port(port):
     """Check whether the given port is a router interface port."""
-    device_owner = port['device_owner']
-    return (device_owner in l3_db.DEVICE_OWNER_ROUTER_INTF)
+    return (
+        port.routerport and
+        port.routerport.port_type == l3_db.DEVICE_OWNER_ROUTER_INTF
+    )
 
 
 def _is_router_gw_port(port):
     """Check whether the given port is a router gateway port."""
-    device_owner = port['device_owner']
-    return (device_owner in l3_db.DEVICE_OWNER_ROUTER_GW)
+    return (
+        port.routerport and
+        port.routerport.port_type == l3_db.DEVICE_OWNER_ROUTER_GW
+    )
 
 
 def _is_vif_port(port):
     """Check whether the given port is a standard VIF port."""
     device_owner = port['device_owner']
-    return (not _is_dhcp_port(port) and
-            device_owner not in (l3_db.DEVICE_OWNER_ROUTER_GW,
-                                 l3_db.DEVICE_OWNER_ROUTER_INTF))
+
+    if isinstance(port, models_v2.Port):
+        return not port.routerport
+    else:
+        return (not _is_dhcp_port(port) and
+                device_owner not in (l3_db.DEVICE_OWNER_ROUTER_GW,
+                                     l3_db.DEVICE_OWNER_ROUTER_INTF))
 
 
 def _is_dhcp_port(port):
@@ -615,23 +623,22 @@ class MidonetPluginV2(db_base_plugin_v2.NeutronDbPluginV2,
             self.prevent_l3_port_deletion(context, id)
 
         self.disassociate_floatingips(context, id)
-        port = self.get_port(context, id)
-        device_id = port['device_id']
+        port = self._get_by_id(context, models_v2.Port, id)
+
         # If this port is for router interface/gw, unlink and delete.
         if _is_router_interface_port(port):
-            self._unlink_bridge_from_router(device_id, id)
+            self._unlink_bridge_from_router(port.routerport.router.id, id)
         elif _is_router_gw_port(port):
             # Gateway removed
             # Remove all the SNAT rules that are tagged.
-            router = self._get_router(context, device_id)
-            tenant_id = router["tenant_id"]
-            chain_names = _nat_chain_names(device_id)
+            tenant_id = port.routerport.router.tenant_id
+            chain_names = _nat_chain_names(port.routerport.router.id)
             for _type, name in chain_names.iteritems():
                 self.client.remove_rules_by_property(
                     tenant_id, name, OS_TENANT_ROUTER_RULE_KEY,
                     SNAT_RULE)
             # Remove the default routes and unlink
-            self._remove_router_gateway(port['device_id'])
+            self._remove_router_gateway(port.routerport.router.id)
 
         self.client.delete_port(id, delete_chains=True)
         try:
@@ -729,8 +736,7 @@ class MidonetPluginV2(db_base_plugin_v2.NeutronDbPluginV2,
                                          status="ACTIVE")
                 context.session.add(router_db)
                 if has_gw_info:
-                    self._update_router_gw_info(context, router_db['id'],
-                                                gw_info)
+                    self._update_router_gw_info(context, router_db, gw_info)
 
             router_data = self._make_router_dict(router_db,
                                                  process_extensions=False)
