@@ -1599,7 +1599,7 @@ class NvpPluginV2(db_base_plugin_v2.QuantumDbPluginV2,
                                      status="ACTIVE")
             context.session.add(router_db)
             if has_gw_info:
-                self._update_router_gw_info(context, router_db['id'], gw_info)
+                self._update_router_gw_info(context, router_db, gw_info)
         return self._make_router_dict(router_db)
 
     def update_router(self, context, id, router):
