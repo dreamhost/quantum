@@ -871,7 +871,7 @@ class QuantumDbPluginV2(quantum_plugin_base_v2.QuantumPluginBaseV2):
                }
         return self._fields(res, fields)
 
-    def _make_port_dict(self, port, fields=None):
+    def _make_port_dict(self, port, fields=None, depth=0):
         res = {"id": port["id"],
                'name': port['name'],
                "network_id": port["network_id"],
@@ -879,11 +879,18 @@ class QuantumDbPluginV2(quantum_plugin_base_v2.QuantumPluginBaseV2):
                "mac_address": port["mac_address"],
                "admin_state_up": port["admin_state_up"],
                "status": port["status"],
-               "fixed_ips": [{'subnet_id': ip["subnet_id"],
-                              'ip_address': ip["ip_address"]}
-                             for ip in port["fixed_ips"]],
                "device_id": port["device_id"],
                "device_owner": port["device_owner"]}
+
+        if depth >= 1:
+            res['fixed_ips'] = [{'subnet_id': ip["subnet_id"],
+                                'ip_address': ip["ip_address"],
+                                'subnet': self._make_subnet_dict(ip.subnet)}
+                                for ip in port["fixed_ips"]]
+        else:
+            res['fixed_ips'] = [{'subnet_id': ip["subnet_id"],
+                                'ip_address': ip["ip_address"]}
+                                for ip in port["fixed_ips"]]
         return self._fields(res, fields)
 
     def _create_bulk(self, resource, context, request_items):

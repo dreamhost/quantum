@@ -131,8 +131,8 @@ class TestBasicRouterOperations(unittest2.TestCase):
         agent = l3_agent.L3NATAgent(HOSTNAME, self.conf)
         internal_cidrs = ['100.0.1.0/24', '200.74.0.0/16']
         ex_gw_port = {'fixed_ips': [{'ip_address': '20.0.0.30',
-                                     'subnet_id': _uuid()}],
-                      'subnet': {'gateway_ip': '20.0.0.1'},
+                                     'subnet_id': _uuid(),
+                                     'subnet': {'gateway_ip': '20.0.0.1'}}],
                       'id': _uuid(),
                       'network_id': _uuid(),
                       'mac_address': 'ca:fe:de:ad:be:ef',
@@ -216,17 +216,17 @@ class TestBasicRouterOperations(unittest2.TestCase):
         ex_gw_port = {'id': _uuid(),
                       'network_id': _uuid(),
                       'fixed_ips': [{'ip_address': '19.4.4.4',
-                                     'subnet_id': _uuid()}],
-                      'subnet': {'cidr': '19.4.4.0/24',
-                                 'gateway_ip': '19.4.4.1'}}
+                                     'subnet_id': _uuid(),
+                                     'subnet': {'cidr': '19.4.4.0/24',
+                                                'gateway_ip': '19.4.4.1'}}]}
         internal_port = {'id': _uuid(),
                          'network_id': _uuid(),
                          'admin_state_up': True,
                          'fixed_ips': [{'ip_address': '35.4.4.4',
-                                        'subnet_id': _uuid()}],
-                         'mac_address': 'ca:fe:de:ad:be:ef',
-                         'subnet': {'cidr': '35.4.4.0/24',
-                                    'gateway_ip': '35.4.4.1'}}
+                                        'subnet_id': _uuid(),
+                                        'subnet': {'cidr': '35.4.4.0/24',
+                                                   'gateway_ip': '35.4.4.1'}}],
+                         'mac_address': 'ca:fe:de:ad:be:ef'}
 
         fake_floatingips1 = {'floatingips': [
             {'id': _uuid(),
