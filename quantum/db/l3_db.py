@@ -44,6 +44,11 @@ DEVICE_OWNER_ROUTER_INTF = l3_constants.DEVICE_OWNER_ROUTER_INTF
 DEVICE_OWNER_ROUTER_GW = l3_constants.DEVICE_OWNER_ROUTER_GW
 DEVICE_OWNER_FLOATINGIP = l3_constants.DEVICE_OWNER_FLOATINGIP
 
+# Maps API field to DB column
+# API parameter name and Database column names may differ.
+# Useful to keep the filtering between API and Database.
+API_TO_DB_COLUMN_MAP = {'port_id': 'fixed_port_id'}
+
 
 class RouterPort(model_base.BASEV2, models_v2.HasId):
     router_id = sa.Column(
@@ -734,6 +739,11 @@ class L3_NAT_db_mixin(l3.RouterPluginBase):
                         page_reverse=False):
         marker_obj = self._get_marker_obj(context, 'floatingip', limit,
                                           marker)
+        if filters is not None:
+            for key, val in API_TO_DB_COLUMN_MAP.iteritems():
+                if key in filters:
+                    filters[val] = filters.pop(key)
+
         return self._get_collection(context, FloatingIP,
                                     self._make_floatingip_dict,
                                     filters=filters, fields=fields,
