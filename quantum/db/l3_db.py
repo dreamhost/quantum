@@ -298,7 +298,7 @@ class L3_NAT_db_mixin(l3.RouterPluginBase):
 
     def get_router(self, context, id, fields=None):
         router = self._get_router(context, id)
-        return self._make_router_dict(router, fields)
+        return self._make_router_dict(router, fields, depth=1)
 
     def get_routers(self, context, filters=None, fields=None,
                     sorts=None, limit=None, marker=None,
