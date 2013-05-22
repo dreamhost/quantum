@@ -189,7 +189,7 @@ class L3_NAT_db_mixin(l3.RouterPluginBase):
             context.session.add(router_obj)
             if gw_info is not None:
                 self._update_router_gw_info(context, router_obj, gw_info)
-        return self._make_router_dict(router_obj)
+        return self._make_router_dict(router_obj, depth=1)
 
     def update_router(self, context, id, router):
         r = router['router']
@@ -204,7 +204,7 @@ class L3_NAT_db_mixin(l3.RouterPluginBase):
             routers = self.get_sync_data(context.elevated(),
                                          [router_obj.id])
             l3_rpc_agent_api.L3AgentNotify.routers_updated(context, routers)
-            return self._make_router_dict(router_obj)
+            return self._make_router_dict(router_obj, depth=1)
 
     def _update_router_gw_info(self, context, router_obj, info):
         # TODO(salvatore-orlando): guarantee atomic behavior also across
