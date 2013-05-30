@@ -622,7 +622,7 @@ class QuantumDbPluginV2(quantum_plugin_base_v2.QuantumPluginBaseV2):
             else:
                 fixed_ip_set.append({'subnet_id': subnet_id})
         if len(fixed_ip_set) > cfg.CONF.max_fixed_ips_per_port:
-            msg = _('Exceeded maximim amount of fixed ips per port')
+            msg = _('Exceeded maximum amount of fixed ips per port')
             raise q_exc.InvalidInput(error_message=msg)
         return fixed_ip_set
 
@@ -667,12 +667,23 @@ class QuantumDbPluginV2(quantum_plugin_base_v2.QuantumPluginBaseV2):
         # Check if the IP's to add are OK
         to_add = self._test_fixed_ips_for_port(context, network_id, new_ips)
         for ip in original_ips:
-            LOG.debug(_("Port update. Hold %s"), ip)
-            QuantumDbPluginV2._hold_ip(context,
-                                       network_id,
-                                       ip['subnet_id'],
-                                       port_id,
-                                       ip['ip_address'])
+            if QuantumDbPluginV2._check_ip_in_allocation_pool(
+                context, ip['subnet_id'], None, ip['ip_address']
+                ):
+                LOG.debug(_("Port update. Hold %s"), ip)
+                QuantumDbPluginV2._hold_ip(context,
+                                           network_id,
+                                           ip['subnet_id'],
+                                           port_id,
+                                           ip['ip_address'])
+            else:
+                # IP is out of allocation pool will not be recycled, but
+                # we do need to delete the allocation from the DB
+                QuantumDbPluginV2._delete_ip_allocation(
+                    context, network_id, ip['subnet_id'], ip['ip_address']
+                )
+                msg = _("%(ip_address)s (%(subnet_id)s) is not recycled")
+                LOG.debug(msg, ip)
 
         if to_add:
             LOG.debug(_("Port update. Adding %s"), to_add)

@@ -469,14 +469,34 @@ class L3_NAT_db_mixin(l3.RouterPluginBase):
                 for rp in router.attached_ports.all()[:]:
                     if rp.port_type != DEVICE_OWNER_ROUTER_INTF:
                         continue
-                    p = rp.port
+                    elif subnet.network_id != rp.port.network_id:
+                        continue
 
-                    if p['fixed_ips'][0]['subnet_id'] == subnet_id:
-                        port_id = p['id']
-                        _network_id = p['network_id']
+                    p = rp.port
+                    port_id = p['id']
+                    _network_id = p['network_id']
+
+                    if rp.port.fixed_ips.count() == 1:
                         context.session.delete(rp)
                         self.delete_port(context, p['id'], l3_port_check=False)
-                        break
+
+                    else:
+                        new_fixed_ips = [
+                            {
+                                'subnet_id': fip['subnet_id'],
+                                'ip_address': fip['ip_address']
+                            }
+                            for fip in rp.port.fixed_ips
+                            if fip['subnet_id'] != subnet_id
+                        ]
+
+                        self.update_port(
+                            context,
+                            rp.port.id,
+                            {'port': {'fixed_ips': new_fixed_ips}}
+                        )
+                    break
+
                 else:
                     raise l3.RouterInterfaceNotFoundForSubnet(
                         router_id=router_id,
