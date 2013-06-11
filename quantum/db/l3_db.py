@@ -347,6 +347,7 @@ class L3_NAT_db_mixin(l3.RouterPluginBase):
             pass
 
     def add_router_interface(self, context, router_id, interface_info):
+        new_to_router = True
         router = self._get_router(context, router_id)
         if not interface_info:
             msg = _("Either subnet_id or port_id must be specified")
@@ -383,24 +384,36 @@ class L3_NAT_db_mixin(l3.RouterPluginBase):
             self._check_for_dup_router_subnet(context, router,
                                               subnet['network_id'],
                                               subnet)
-
             fixed_ip = {'ip_address': subnet['gateway_ip'],
                         'subnet_id': subnet['id']}
-            port = self.create_port(context, {
-                'port':
-                {'tenant_id': subnet['tenant_id'],
-                 'network_id': subnet['network_id'],
-                 'fixed_ips': [fixed_ip],
-                 'mac_address': attributes.ATTR_NOT_SPECIFIED,
-                 'admin_state_up': True,
-                 'device_id': '',
-                 'device_owner': device_owner,
-                 'name': ''}})
+
+            for rp in router.attached_ports:
+                if rp.port.network_id == subnet.network_id:
+                    fixed_ips = [
+                        {'subnet_id': ip["subnet_id"], 'ip_address': ip["ip_address"]}
+                        for ip in rp.port["fixed_ips"]
+                    ]
+                    fixed_ips.append(fixed_ip)
+                    port = self.update_port(context, rp.port_id, {'port': {'fixed_ips': fixed_ips}})
+                    new_to_router = False
+                    break
+            else:
+                port = self.create_port(context, {
+                    'port':
+                    {'tenant_id': subnet['tenant_id'],
+                     'network_id': subnet['network_id'],
+                     'fixed_ips': [fixed_ip],
+                     'mac_address': attributes.ATTR_NOT_SPECIFIED,
+                     'admin_state_up': True,
+                     'device_id': '',
+                     'device_owner': device_owner,
+                     'name': ''}})
 
         with context.session.begin(subtransactions=True):
-            rp = RouterPort(port_id=port['id'], router_id=router['id'],
-                            port_type=device_owner)
-            context.session.add(rp)
+            if new_to_router:
+                rp = RouterPort(port_id=port['id'], router_id=router['id'],
+                                port_type=device_owner)
+                context.session.add(rp)
             routers = self.get_sync_data(context.elevated(), [router_id])
 
         l3_rpc_agent_api.L3AgentNotify.routers_updated(
@@ -469,14 +482,34 @@ class L3_NAT_db_mixin(l3.RouterPluginBase):
                 for rp in router.attached_ports.all()[:]:
                     if rp.port_type != DEVICE_OWNER_ROUTER_INTF:
                         continue
-                    p = rp.port
+                    elif subnet.network_id != rp.port.network_id:
+                        continue
 
-                    if p['fixed_ips'][0]['subnet_id'] == subnet_id:
-                        port_id = p['id']
-                        _network_id = p['network_id']
+                    p = rp.port
+                    port_id = p['id']
+                    _network_id = p['network_id']
+
+                    if rp.port.fixed_ips.count() == 1:
                         context.session.delete(rp)
                         self.delete_port(context, p['id'], l3_port_check=False)
-                        break
+
+                    else:
+                        new_fixed_ips = [
+                            {
+                                'subnet_id': fip['subnet_id'],
+                                'ip_address': fip['ip_address']
+                            }
+                            for fip in rp.port.fixed_ips
+                            if fip['subnet_id'] != subnet_id
+                        ]
+
+                        self.update_port(
+                            context,
+                            rp.port.id,
+                            {'port': {'fixed_ips': new_fixed_ips}}
+                        )
+                    break
+
                 else:
                     raise l3.RouterInterfaceNotFoundForSubnet(
                         router_id=router_id,
