@@ -149,8 +149,8 @@ class TestBasicRouterOperations(base.BaseTestCase):
         agent = l3_agent.L3NATAgent(HOSTNAME, self.conf)
         internal_cidrs = ['100.0.1.0/24', '200.74.0.0/16']
         ex_gw_port = {'fixed_ips': [{'ip_address': '20.0.0.30',
-                                     'subnet_id': _uuid()}],
-                      'subnet': {'gateway_ip': '20.0.0.1'},
+                                     'subnet_id': _uuid(),
+                                     'subnet': {'gateway_ip': '20.0.0.1'}}],
                       'id': _uuid(),
                       'network_id': _uuid(),
                       'mac_address': 'ca:fe:de:ad:be:ef',
