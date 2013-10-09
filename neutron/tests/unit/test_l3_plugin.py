@@ -951,7 +951,7 @@ class L3NatTestCaseBase(L3NatTestCaseMixin):
                     s['subnet']['network_id'])
                 body = self._show('routers', r['router']['id'])
                 gw_info = body['router']['external_gateway_info']
-                self.assertEqual(gw_info, None)
+                self.assertIsNone(gw_info)
 
     def test_router_add_gateway_tenant_ctx(self):
         with self.router(tenant_id='noadmin',
@@ -971,7 +971,7 @@ class L3NatTestCaseBase(L3NatTestCaseMixin):
                     s['subnet']['network_id'])
                 body = self._show('routers', r['router']['id'])
                 gw_info = body['router']['external_gateway_info']
-                self.assertEqual(gw_info, None)
+                self.assertIsNone(gw_info)
 
     def test_create_router_port_with_device_id_of_other_teants_router(self):
         with self.router() as admin_router:
@@ -1306,8 +1306,8 @@ class L3NatTestCaseBase(L3NatTestCaseMixin):
                                       p['port']['fixed_ips'][0]['subnet_id']}}
             with self.floatingip_no_assoc(private_sub) as fip:
                 body = self._show('floatingips', fip['floatingip']['id'])
-                self.assertEqual(body['floatingip']['port_id'], None)
-                self.assertEqual(body['floatingip']['fixed_ip_address'], None)
+                self.assertIsNone(body['floatingip']['port_id'])
+                self.assertIsNone(body['floatingip']['fixed_ip_address'])
 
                 port_id = p['port']['id']
                 ip_address = p['port']['fixed_ips'][0]['ip_address']
@@ -1342,10 +1342,9 @@ class L3NatTestCaseBase(L3NatTestCaseMixin):
                         def assert_no_assoc(fip):
                             body = self._show('floatingips',
                                               fip['floatingip']['id'])
-                            self.assertEqual(body['floatingip']['port_id'],
-                                             None)
+                            self.assertIsNone(body['floatingip']['port_id'])
                             self.assertIsNone(
-                                body['floatingip']['fixed_ip_address'], None)
+                                body['floatingip']['fixed_ip_address'])
 
                         assert_no_assoc(fip1)
                         assert_no_assoc(fip2)
@@ -1402,9 +1401,9 @@ class L3NatTestCaseBase(L3NatTestCaseMixin):
                 body = self._show('floatingips', fip['floatingip']['id'])
                 self.assertEqual(body['floatingip']['id'],
                                  fip['floatingip']['id'])
-                self.assertEqual(body['floatingip']['port_id'], None)
-                self.assertEqual(body['floatingip']['fixed_ip_address'], None)
-                self.assertEqual(body['floatingip']['router_id'], None)
+                self.assertIsNone(body['floatingip']['port_id'])
+                self.assertIsNone(body['floatingip']['fixed_ip_address'])
+                self.assertIsNone(body['floatingip']['router_id'])
 
     def test_two_fips_one_port_invalid_return_409(self):
         with self.floatingip_with_assoc() as fip1:
