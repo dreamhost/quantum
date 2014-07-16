@@ -293,8 +293,7 @@ class L3_NAT_db_mixin(l3.RouterPluginBase):
             for rp in router.attached_ports.all():
                 self._core_plugin._delete_port(
                     context.elevated(),
-                    rp.port['id'],
-                    l3_port_check=False
+                    rp.port['id']
                 )
             context.session.delete(router)
         self.l3_rpc_notifier.router_deleted(context, id)
